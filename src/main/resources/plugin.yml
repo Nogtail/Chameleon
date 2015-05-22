@@ -1,0 +1,5 @@
+name: Chameleon
+version: 1.0
+author: Nogtail
+main: com.koubal.chameleon.Chameleon
+depend: [ProtocolLib]
