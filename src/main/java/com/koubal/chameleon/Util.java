@@ -7,7 +7,9 @@ import com.comphenix.protocol.wrappers.PlayerInfoData;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Server;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
@@ -18,10 +20,12 @@ public final class Util {
 	private static Object sessionServiceObject;
 	private static Method fillProfilePropertiesMethod;
 
-	private static Method getHandleMethod;
+	private static Method playerGetHandleMethod;
 	private static Field pingField;
 
 	private static Object playerListObject;
+	private static Method worldGetHandleMethod;
+	private static Field dimensionField;
 	private static Method moveToWorldMethod;
 
 	private Util() {
@@ -55,14 +59,14 @@ public final class Util {
 		Object entityPlayer;
 
 		if (pingField == null) {
-			if (getHandleMethod == null) {
-				initialiseGetHandleMethod(player);
+			if (playerGetHandleMethod == null) {
+				initialisePlayerGetHandleMethod(player);
 			}
 
-			entityPlayer = getHandleMethod.invoke(player);
+			entityPlayer = playerGetHandleMethod.invoke(player);
 			pingField = entityPlayer.getClass().getField("ping");
 		} else {
-			entityPlayer = getHandleMethod.invoke(player);
+			entityPlayer = playerGetHandleMethod.invoke(player);
 		}
 
 		int ping = (Integer) pingField.get(entityPlayer);
@@ -77,6 +81,9 @@ public final class Util {
 	}
 
 	protected static void reloadSkin(Player player) throws ReflectiveOperationException {
+		World world = player.getWorld();
+		Object worldServerObject;
+
 		if (moveToWorldMethod == null) {
 			Server server = Bukkit.getServer();
 			Object minecraftServerObject = server.getClass().getMethod("getServer").invoke(server);
@@ -88,17 +95,26 @@ public final class Util {
 					break;
 				}
 			}
+
+			worldGetHandleMethod = world.getClass().getMethod("getHandle");
+			worldServerObject = worldGetHandleMethod.invoke(world);
+			dimensionField = worldServerObject.getClass().getField("dimension");
+		} else {
+			worldServerObject = worldGetHandleMethod.invoke(world);
 		}
 
-		if (getHandleMethod == null) {
-			initialiseGetHandleMethod(player);
+		if (playerGetHandleMethod == null) {
+			initialisePlayerGetHandleMethod(player);
 		}
 
-		Object entityHumanObject = getHandleMethod.invoke(player);
-		moveToWorldMethod.invoke(playerListObject, entityHumanObject, 0, true, player.getLocation(), false);
+		int dimension = (Integer) dimensionField.get(worldServerObject);
+		Location location = player.getLocation();
+
+		Object entityHumanObject = playerGetHandleMethod.invoke(player);
+		moveToWorldMethod.invoke(playerListObject, entityHumanObject, dimension, true, location.clone(), false); // dimension, keepInv, location, avoidSuffocation
 	}
 
-	private static void initialiseGetHandleMethod(Player player) throws NoSuchMethodException {
-		getHandleMethod = player.getClass().getMethod("getHandle");
+	private static void initialisePlayerGetHandleMethod(Player player) throws NoSuchMethodException {
+		playerGetHandleMethod = player.getClass().getMethod("getHandle");
 	}
 }
